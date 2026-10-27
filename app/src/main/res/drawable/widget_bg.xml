@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Now Playing widget card: near-black with a soft border, NOXA-dark. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#FF101214" />
+    <corners android:radius="22dp" />
+    <stroke
+        android:width="1dp"
+        android:color="#FF2B3034" />
+</shape>

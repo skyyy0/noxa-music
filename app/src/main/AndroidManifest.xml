@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <!--
+        NOXA Wake (v3.0.0): layanan mikrofon yang mendengarkan kata bangun
+        “Hi NOXA” selama NOXA di-background. Android 14+ mewajibkan izin
+        khusus per tipe FGS — tanpa ini, startForeground(tipe microphone)
+        dilempar SecurityException.
+    -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <!--
+        Bubble orb gradien muter tampil DI ATAS aplikasi lain (game,
+        WhatsApp) saat wake word terdeteksi. Izin special app-op yang diminta
+        lewat layar Pengaturan sistem — tidak bisa lewat dialog runtime biasa.
+    -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <!--
+        Visualizer spektrum di pemutar penuh: Android memperlakukan
+        audiofx.Visualizer sebagai "audio monitoring" sehingga izin mikrofit
+        wajib ada meski NOXA tidak pernah merekam apapun. Izin hanya diminta
+        saat user menyalakan visualizer; tanpa izin, fitur mati dengan pesan
+        jujur dan aplikasi tetap berjalan normal.
+    -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!--
+        In-app update: without this manifest permission Android 8+ never
+        offers the system package installer for a downloaded APK — the share
+        sheet only shows file-handling apps (Termux, ShareIt, WPS) because
+        nothing claims "install packages" for us.
+    -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
+    <!--
+        Security hardening (v1.15.8): backup & device-transfer are OFF.
+        App data carries the local account ledger (salted password hashes),
+        sessions and Room history — none of it should leave the device
+        through adb/cloud backup. Accounts live in the shared registry
+        anyway, so nothing user-critical is lost.
+    -->
+    <application
+        android:name=".NoxaApplication"
+        android:allowBackup="false"
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.MyApplication">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:launchMode="singleTask"
+            android:theme="@style/Theme.MyApplication">
+            <!--
+                No windowSoftInputMode=adjustResize: MainActivity already calls
+                enableEdgeToEdge(), and on several OEM builds adjustResize AND
+                the Compose ime insets both shrink the layout — the chat
+                composer then floated with a keyboard-sized gap below it.
+                Inset padding alone (WindowInsets.ime in the chat screens) is
+                the single, reliable mechanism on every supported API level.
+            -->
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!--
+                Shared NOXA links open straight in the player. Two forms are
+                registered: the noxa:// scheme (always unambiguous) and the
+                https form on Sky's domain, so a pasted link in WhatsApp is
+                tappable and lands in NOXA.
+            -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="noxa"
+                    android:host="play" />
+            </intent-filter>
+
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="https"
+                    android:host="skyvibes.my.id"
+                    android:pathPrefix="/track/" />
+                <data
+                    android:scheme="https"
+                    android:host="www.skyvibes.my.id"
+                    android:pathPrefix="/track/" />
+            </intent-filter>
+        </activity>
+
+        <!-- Hands the canvas share card to other apps (WhatsApp, etc.). -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
+        <service
+            android:name=".media.MediaPlaybackService"
+            android:exported="true"
+            android:foregroundServiceType="mediaPlayback">
+            <intent-filter>
+                <action android:name="androidx.media3.session.MediaSessionService" />
+            </intent-filter>
+        </service>
+
+        <!--
+            NOXA Wake — FGS tipe microphone. stopWithTask=false: saat user
+            menyapukan NOXA dari recents, layanan (dan mendengarkan wake word)
+            tetap hidup — itu memang gunanya fitur ini. Berhenti hanya lewat
+            tombol “Berhenti” di notifikasi / toggle Pengaturan.
+        -->
+        <service
+            android:name=".voice.NoxaWakeService"
+            android:exported="false"
+            android:stopWithTask="false"
+            android:foregroundServiceType="microphone" />
+
+        <!--
+            Lets the system hand media-button events (headsets, car units, and the
+            resume entry shown after a reboot) back to the media session. Without
+            it the "continue listening" affordance never appears once the device
+            has restarted, because Android forbids apps from starting a
+            mediaPlayback foreground service from BOOT_COMPLETED.
+        -->
+        <receiver
+            android:name="androidx.media3.session.MediaButtonReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MEDIA_BUTTON" />
+            </intent-filter>
+        </receiver>
+
+        <!--
+            Home-screen "Now Playing" widget. exported=false is safe here: the
+            system itself may always deliver broadcasts to a same-UID/system-only
+            receiver (APPWIDGET_UPDATE comes from the system), while third-party
+            apps cannot spoof the widget's play/pause/next actions.
+        -->
+        <receiver
+            android:name=".widget.NoxaWidgetProvider"
+            android:exported="false"
+            android:label="@string/widget_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/noxa_widget_info" />
+        </receiver>
+    </application>
+
+</manifest>

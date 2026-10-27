@@ -1,0 +1,5 @@
+*.jks
+firebase.json
+firebase-blueprint.json
+.env
+/build

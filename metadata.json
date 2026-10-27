@@ -1,0 +1,6 @@
+{
+  "name": "NOXA",
+  "description": "Premium native music streaming player powered by the Audius open music API with real, playable audio and high-fidelity playback.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

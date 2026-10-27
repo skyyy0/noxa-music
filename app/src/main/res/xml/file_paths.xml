@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    FileProvider paths: the canvas share card is written to cacheDir/share and
+    handed to the system share sheet through the FileProvider.
+-->
+<paths>
+    <cache-path
+        name="shared_cards"
+        path="share/" />
+    <!-- In-app update downloads, handed to the system installer via the
+         same FileProvider once complete. -->
+    <external-files-path
+        name="update_apks"
+        path="updates/" />
+</paths>

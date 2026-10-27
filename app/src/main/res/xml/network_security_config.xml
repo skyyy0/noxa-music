@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  NOXA network policy: HTTPS only.
+
+  Every service the app talks to — Deezer, Audius, LRCLIB, the Piped /
+  Invidious instances, Telegraph (account registry), GitHub (updates),
+  MediaFire (update files) — serves TLS. Blocking cleartext means no stream,
+  registry write, or update link can be quietly read or swapped on the wire.
+  Only the system trust store is honoured; no user-installed CA can
+  intercept NOXA's traffic.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

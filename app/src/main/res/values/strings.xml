@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">NOXA</string>
+    <string name="widget_name">NOXA — Now Playing</string>
+    <string name="widget_description">Kontrol lagu yang sedang diputar langsung dari layar utama.</string>
+</resources>

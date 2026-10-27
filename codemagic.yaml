@@ -1,0 +1,104 @@
+# Codemagic CI/CD configuration for NOXA (native Android / Gradle).
+#
+# Two workflows are provided:
+#
+#   * noxa-android-debug   -> installable, debug-signed APK with ZERO setup.
+#                             Works immediately on a fresh account.
+#   * noxa-android-release -> release APK signed with YOUR keystore. Requires an
+#                             Android keystore uploaded in Codemagic
+#                             (Team settings -> Code signing identities -> Android
+#                             keystores) with the reference name `noxa_keystore`.
+#
+# Optional secret (add as an app-level environment variable, marked Secret):
+#   GOOGLE_SERVICES_JSON_BASE64 -> base64 of your Firebase google-services.json.
+#     Without it the app still builds and runs (guest mode), but Google Sign-In
+#     and Firestore are unavailable.
+#
+# If your Codemagic plan does not support `mac_mini_m2`, switch `instance_type`
+# to `linux_x2` (requires billing enabled) — the scripts are POSIX shell.
+
+workflows:
+  noxa-android-release:
+    name: NOXA Android Release APK
+    max_build_duration: 90
+    instance_type: mac_mini_m2
+
+    environment:
+      java: 17
+      # Upload a keystore in Codemagic and reference it here. Codemagic then
+      # exports CM_KEYSTORE_PATH / CM_KEYSTORE_PASSWORD / CM_KEY_ALIAS /
+      # CM_KEY_PASSWORD, which app/build.gradle.kts already understands.
+      android_signing:
+        - noxa_keystore
+
+    cache:
+      cache_paths:
+        - ~/.gradle/caches
+        - ~/.gradle/wrapper
+
+    scripts:
+      - name: Write local.properties (Android SDK path)
+        script: |
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > "$CM_BUILD_DIR/local.properties"
+
+      - name: Restore google-services.json (optional)
+        script: |
+          if [ -n "${GOOGLE_SERVICES_JSON_BASE64:-}" ]; then
+            printf '%s' "$GOOGLE_SERVICES_JSON_BASE64" | base64 --decode > "$CM_BUILD_DIR/app/google-services.json"
+            echo "google-services.json restored from secret."
+          else
+            echo "GOOGLE_SERVICES_JSON_BASE64 is not set."
+            echo "Firebase Auth / Google Sign-In will be unavailable; the app still builds and runs in guest mode."
+          fi
+
+      - name: Make Gradle wrapper executable
+        script: |
+          chmod +x ./gradlew
+
+      - name: Build release APK
+        script: |
+          ./gradlew assembleRelease --no-daemon --stacktrace
+
+    artifacts:
+      - app/build/outputs/apk/release/*.apk
+      - app/build/outputs/apk/**/*.apk
+      - app/build/outputs/mapping/release/mapping.txt
+
+  noxa-android-debug:
+    name: NOXA Android Debug APK
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+
+    environment:
+      java: 17
+
+    cache:
+      cache_paths:
+        - ~/.gradle/caches
+        - ~/.gradle/wrapper
+
+    scripts:
+      - name: Write local.properties (Android SDK path)
+        script: |
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > "$CM_BUILD_DIR/local.properties"
+
+      - name: Restore google-services.json (optional)
+        script: |
+          if [ -n "${GOOGLE_SERVICES_JSON_BASE64:-}" ]; then
+            printf '%s' "$GOOGLE_SERVICES_JSON_BASE64" | base64 --decode > "$CM_BUILD_DIR/app/google-services.json"
+            echo "google-services.json restored from secret."
+          else
+            echo "GOOGLE_SERVICES_JSON_BASE64 is not set - building without Firebase configuration."
+          fi
+
+      - name: Make Gradle wrapper executable
+        script: |
+          chmod +x ./gradlew
+
+      - name: Build debug APK
+        script: |
+          ./gradlew assembleDebug --no-daemon --stacktrace
+
+    artifacts:
+      - app/build/outputs/apk/debug/*.apk
+      - app/build/outputs/apk/**/*.apk
