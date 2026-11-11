@@ -3,3 +3,11 @@ firebase.json
 firebase-blueprint.json
 .env
 /build
+
+# Android / Gradle
+local.properties
+.gradle/
+.idea/
+*.iml
+.cxx/
+captures/

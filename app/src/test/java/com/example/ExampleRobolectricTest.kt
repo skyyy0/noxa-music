@@ -19,10 +19,12 @@ class ExampleRobolectricTest {
   fun setUp() {
     val context = ApplicationProvider.getApplicationContext<Context>()
     if (FirebaseApp.getApps(context).isEmpty()) {
+      // Nilai placeholder: test ini tidak memanggil jaringan, jadi tidak perlu
+      // kredensial proyek Firebase yang asli (jangan simpan kunci di repo).
       val options = FirebaseOptions.Builder()
-        .setApplicationId("1:421601545057:android:6efa9114fdb644f0ffd320")
-        .setApiKey("AIzaSyB-C8kMqLMwLNv5CrnqUk_pH9-PN3Ykcqk")
-        .setProjectId("gen-lang-client-0710198930")
+        .setApplicationId("1:000000000000:android:0000000000000000000000")
+        .setApiKey("test-api-key")
+        .setProjectId("noxa-test")
         .build()
       FirebaseApp.initializeApp(context, options)
     }
